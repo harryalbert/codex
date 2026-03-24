@@ -2216,7 +2216,12 @@ impl Session {
                 }
 
                 // Append the current session's initial context after the reconstructed history.
-                let initial_context = self.build_initial_context(&turn_context, Vec::new()).await;
+                let initial_context = self
+                    .build_initial_context(
+                        &turn_context,
+                        /*additional_developer_sections*/ Vec::new(),
+                    )
+                    .await;
                 self.record_conversation_items(&turn_context, &initial_context)
                     .await;
                 {
@@ -3649,8 +3654,11 @@ impl Session {
         &self,
         turn_context: &TurnContext,
     ) {
-        self.record_context_updates_with_additional_developer_sections(turn_context, Vec::new())
-            .await;
+        self.record_context_updates_with_additional_developer_sections(
+            turn_context,
+            /*additional_developer_sections*/ Vec::new(),
+        )
+        .await;
     }
 
     // Some turn-local guidance, such as explicit plugin mention hints, belongs in the canonical
