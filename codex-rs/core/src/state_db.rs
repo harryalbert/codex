@@ -23,9 +23,11 @@ use uuid::Uuid;
 /// Core-facing handle to the SQLite-backed state runtime.
 pub type StateDbHandle = Arc<codex_state::StateRuntime>;
 
-/// Initialize the state runtime for thread state persistence and backfill checks. To only be used
-/// inside `core`. The initialization should not be done anywhere else.
-pub(crate) async fn init(config: &Config) -> Option<StateDbHandle> {
+/// Initialize the state runtime for thread state persistence and backfill checks.
+///
+/// Callers that keep a shared runtime alive for repeated state reads should use
+/// this helper instead of reopening SQLite on each lookup.
+pub async fn init(config: &Config) -> Option<StateDbHandle> {
     let runtime = match codex_state::StateRuntime::init(
         config.sqlite_home.clone(),
         config.model_provider_id.clone(),
