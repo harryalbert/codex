@@ -195,7 +195,7 @@ pub(crate) fn build_settings_update_items(
     additional_developer_sections: Vec<String>,
 ) -> Vec<ResponseItem> {
     let contextual_user_message = build_environment_update_item(previous, next, shell);
-    let mut developer_update_sections = [
+    let developer_update_sections = [
         // Keep model-switch instructions first so model-specific guidance is read before
         // any other context diffs on this turn.
         build_model_instructions_update_item(previous_turn_settings, next),
@@ -207,8 +207,8 @@ pub(crate) fn build_settings_update_items(
     .into_iter()
     .flatten()
     .map(DeveloperInstructions::into_text)
+    .chain(additional_developer_sections)
     .collect::<Vec<_>>();
-    developer_update_sections.extend(additional_developer_sections);
 
     let mut items = Vec::with_capacity(2);
     if let Some(developer_message) = build_developer_update_item(developer_update_sections) {
