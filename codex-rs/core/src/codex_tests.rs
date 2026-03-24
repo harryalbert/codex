@@ -959,7 +959,11 @@ async fn resumed_history_injects_initial_context_on_first_context_update_only() 
     session
         .record_context_updates_and_set_reference_context_item(&turn_context)
         .await;
-    expected.extend(session.build_initial_context(&turn_context).await);
+    expected.extend(
+        session
+            .build_initial_context(&turn_context, Vec::new())
+            .await,
+    );
     let history_after_seed = session.clone_history().await;
     assert_eq!(expected, history_after_seed.raw_items());
 
@@ -1124,7 +1128,7 @@ async fn record_initial_history_reconstructs_forked_transcript() {
     let reconstruction_turn = session.new_default_turn().await;
     expected.extend(
         session
-            .build_initial_context(reconstruction_turn.as_ref())
+            .build_initial_context(reconstruction_turn.as_ref(), Vec::new())
             .await,
     );
     let history = session.state.lock().await.clone_history();
@@ -1336,7 +1340,7 @@ async fn thread_rollback_drops_last_turn_from_history() {
     let (sess, tc, rx) = make_session_and_context_with_rx().await;
     let rollout_path = attach_rollout_recorder(&sess).await;
 
-    let initial_context = sess.build_initial_context(tc.as_ref()).await;
+    let initial_context = sess.build_initial_context(tc.as_ref(), Vec::new()).await;
     let turn_1 = vec![
         user_message("turn 1 user"),
         assistant_message("turn 1 assistant"),
@@ -1400,7 +1404,7 @@ async fn thread_rollback_clears_history_when_num_turns_exceeds_existing_turns() 
     let (sess, tc, rx) = make_session_and_context_with_rx().await;
     attach_rollout_recorder(&sess).await;
 
-    let initial_context = sess.build_initial_context(tc.as_ref()).await;
+    let initial_context = sess.build_initial_context(tc.as_ref(), Vec::new()).await;
     let turn_1 = vec![user_message("turn 1 user")];
     let mut full_history = Vec::new();
     full_history.extend(initial_context.clone());
@@ -1426,7 +1430,7 @@ async fn thread_rollback_clears_history_when_num_turns_exceeds_existing_turns() 
 async fn thread_rollback_fails_without_persisted_rollout_path() {
     let (sess, tc, rx) = make_session_and_context_with_rx().await;
 
-    let initial_context = sess.build_initial_context(tc.as_ref()).await;
+    let initial_context = sess.build_initial_context(tc.as_ref(), Vec::new()).await;
     sess.record_into_history(&initial_context, tc.as_ref())
         .await;
 
@@ -1743,7 +1747,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
 async fn thread_rollback_fails_when_turn_in_progress() {
     let (sess, tc, rx) = make_session_and_context_with_rx().await;
 
-    let initial_context = sess.build_initial_context(tc.as_ref()).await;
+    let initial_context = sess.build_initial_context(tc.as_ref(), Vec::new()).await;
     sess.record_into_history(&initial_context, tc.as_ref())
         .await;
 
@@ -1764,7 +1768,7 @@ async fn thread_rollback_fails_when_turn_in_progress() {
 async fn thread_rollback_fails_when_num_turns_is_zero() {
     let (sess, tc, rx) = make_session_and_context_with_rx().await;
 
-    let initial_context = sess.build_initial_context(tc.as_ref()).await;
+    let initial_context = sess.build_initial_context(tc.as_ref(), Vec::new()).await;
     sess.record_into_history(&initial_context, tc.as_ref())
         .await;
 
@@ -3697,7 +3701,7 @@ async fn build_settings_update_items_emits_environment_item_for_network_changes(
 
     let reference_context_item = previous_context.to_turn_context_item();
     let update_items = session
-        .build_settings_update_items(Some(&reference_context_item), &current_context)
+        .build_settings_update_items(Some(&reference_context_item), &current_context, Vec::new())
         .await;
 
     let environment_update = update_items
@@ -3732,7 +3736,7 @@ async fn build_settings_update_items_emits_environment_item_for_time_changes() {
 
     let reference_context_item = previous_context.to_turn_context_item();
     let update_items = session
-        .build_settings_update_items(Some(&reference_context_item), &current_context)
+        .build_settings_update_items(Some(&reference_context_item), &current_context, Vec::new())
         .await;
 
     let environment_update = update_items
@@ -3767,6 +3771,7 @@ async fn build_settings_update_items_emits_realtime_start_when_session_becomes_l
         .build_settings_update_items(
             Some(&previous_context.to_turn_context_item()),
             &current_context,
+            Vec::new(),
         )
         .await;
 
@@ -3795,6 +3800,7 @@ async fn build_settings_update_items_emits_realtime_end_when_session_stops_being
         .build_settings_update_items(
             Some(&previous_context.to_turn_context_item()),
             &current_context,
+            Vec::new(),
         )
         .await;
 
@@ -3828,7 +3834,7 @@ async fn build_settings_update_items_uses_previous_turn_settings_for_realtime_en
         .set_previous_turn_settings(Some(previous_turn_settings))
         .await;
     let update_items = session
-        .build_settings_update_items(Some(&previous_context_item), &current_context)
+        .build_settings_update_items(Some(&previous_context_item), &current_context, Vec::new())
         .await;
 
     let developer_texts = developer_input_texts(&update_items);
@@ -3845,7 +3851,9 @@ async fn build_initial_context_uses_previous_realtime_state() {
     let (session, mut turn_context) = make_session_and_context().await;
     turn_context.realtime_active = true;
 
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     let developer_texts = developer_input_texts(&initial_context);
     assert!(
         developer_texts
@@ -3859,7 +3867,9 @@ async fn build_initial_context_uses_previous_realtime_state() {
         let mut state = session.state.lock().await;
         state.set_reference_context_item(Some(previous_context_item));
     }
-    let resumed_context = session.build_initial_context(&turn_context).await;
+    let resumed_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     let resumed_developer_texts = developer_input_texts(&resumed_context);
     assert!(
         !resumed_developer_texts
@@ -3884,7 +3894,9 @@ async fn build_initial_context_omits_default_image_save_location_with_image_hist
         )
         .await;
 
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     let developer_texts = developer_input_texts(&initial_context);
     assert!(
         !developer_texts
@@ -3898,7 +3910,9 @@ async fn build_initial_context_omits_default_image_save_location_with_image_hist
 async fn build_initial_context_omits_default_image_save_location_without_image_history() {
     let (session, turn_context) = make_session_and_context().await;
 
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     let developer_texts = developer_input_texts(&initial_context);
 
     assert!(
@@ -4011,7 +4025,9 @@ async fn build_initial_context_uses_previous_turn_settings_for_realtime_end() {
     session
         .set_previous_turn_settings(Some(previous_turn_settings))
         .await;
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     let developer_texts = developer_input_texts(&initial_context);
     assert!(
         developer_texts
@@ -4033,7 +4049,9 @@ async fn build_initial_context_restates_realtime_start_when_reference_context_is
     session
         .set_previous_turn_settings(Some(previous_turn_settings))
         .await;
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     let developer_texts = developer_input_texts(&initial_context);
     assert!(
         developer_texts
@@ -4051,7 +4069,9 @@ async fn record_context_updates_and_set_reference_context_item_injects_full_cont
         .record_context_updates_and_set_reference_context_item(&turn_context)
         .await;
     let history = session.clone_history().await;
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
     assert_eq!(history.raw_items().to_vec(), initial_context);
 
     let current_context = session.reference_context_item().await;
@@ -4095,7 +4115,11 @@ async fn record_context_updates_and_set_reference_context_item_reinjects_full_co
 
     let history = session.clone_history().await;
     let mut expected_history = vec![compacted_summary];
-    expected_history.extend(session.build_initial_context(&turn_context).await);
+    expected_history.extend(
+        session
+            .build_initial_context(&turn_context, Vec::new())
+            .await,
+    );
     assert_eq!(history.raw_items().to_vec(), expected_history);
 }
 
@@ -4139,7 +4163,7 @@ async fn record_context_updates_and_set_reference_context_item_persists_baseline
     }
 
     let update_items = session
-        .build_settings_update_items(Some(&previous_context_item), &turn_context)
+        .build_settings_update_items(Some(&previous_context_item), &turn_context, Vec::new())
         .await;
     assert_eq!(update_items, Vec::new());
 
@@ -4189,7 +4213,9 @@ async fn build_initial_context_prepends_model_switch_message() {
     session
         .set_previous_turn_settings(Some(previous_turn_settings))
         .await;
-    let initial_context = session.build_initial_context(&turn_context).await;
+    let initial_context = session
+        .build_initial_context(&turn_context, Vec::new())
+        .await;
 
     let ResponseItem::Message { role, content, .. } = &initial_context[0] else {
         panic!("expected developer message");
@@ -4870,7 +4896,7 @@ async fn sample_rollout(
     // personality_spec) matches reconstruction.
     let reconstruction_turn = session.new_default_turn().await;
     let mut initial_context = session
-        .build_initial_context(reconstruction_turn.as_ref())
+        .build_initial_context(reconstruction_turn.as_ref(), Vec::new())
         .await;
     // Ensure personality_spec is present when Personality is enabled, so expected matches
     // what reconstruction produces (build_initial_context may omit it when baked into model).
