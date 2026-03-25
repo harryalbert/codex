@@ -3,6 +3,7 @@ use std::future::Future;
 use std::io::IsTerminal;
 use std::io::Result;
 use std::io::Stdout;
+use std::env;
 use std::io::stdin;
 use std::io::stdout;
 use std::panic;
@@ -253,6 +254,9 @@ pub struct Tui {
     terminal_focused: Arc<AtomicBool>,
     enhanced_keys_supported: bool,
     notification_backend: Option<DesktopNotificationBackend>,
+    // When true, notifications fire even when the terminal reports as focused.
+    // Warp does not relay FocusIn/FocusOut escape sequences to the PTY.
+    skip_focus_check: bool,
     // When false, enter_alt_screen() becomes a no-op (for Zellij scrollback support)
     alt_screen_enabled: bool,
 }
@@ -282,6 +286,7 @@ impl Tui {
             terminal_focused: Arc::new(AtomicBool::new(true)),
             enhanced_keys_supported,
             notification_backend: Some(detect_backend(NotificationMethod::default())),
+            skip_focus_check: env::var("TERM_PROGRAM").ok().as_deref() == Some("WarpTerminal"),
             alt_screen_enabled: true,
         }
     }
@@ -360,7 +365,7 @@ impl Tui {
     /// Emit a desktop notification now if the terminal is unfocused.
     /// Returns true if a notification was posted.
     pub fn notify(&mut self, message: impl AsRef<str>) -> bool {
-        if self.terminal_focused.load(Ordering::Relaxed) {
+        if self.terminal_focused.load(Ordering::Relaxed) && !self.skip_focus_check {
             return false;
         }
 
