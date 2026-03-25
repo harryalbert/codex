@@ -56,7 +56,7 @@ fn supports_osc9() -> bool {
     // that don't set it (e.g., tmux/ssh) to avoid regressing OSC 9 support.
     if matches!(
         env::var("TERM_PROGRAM").ok().as_deref(),
-        Some("WezTerm" | "ghostty")
+        Some("WezTerm" | "ghostty" | "WarpTerminal")
     ) {
         return true;
     }
@@ -138,6 +138,19 @@ mod tests {
         assert!(matches!(
             detect_backend(NotificationMethod::Auto),
             super::DesktopNotificationBackend::Bel(_)
+        ));
+    }
+
+    #[test]
+    #[serial]
+    fn auto_uses_osc9_for_warp() {
+        let _term = EnvVarGuard::remove("TERM");
+        let _term_program = EnvVarGuard::set("TERM_PROGRAM", "WarpTerminal");
+        let _iterm = EnvVarGuard::remove("ITERM_SESSION_ID");
+        let _wt = EnvVarGuard::remove("WT_SESSION");
+        assert!(matches!(
+            detect_backend(NotificationMethod::Auto),
+            super::DesktopNotificationBackend::Osc9(_)
         ));
     }
 
