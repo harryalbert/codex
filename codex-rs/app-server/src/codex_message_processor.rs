@@ -4424,7 +4424,7 @@ impl CodexMessageProcessor {
 
             let mut filtered = Vec::with_capacity(page.items.len());
             for it in page.items {
-                let Some(mut summary) = summary_from_thread_list_item(
+                let Some(summary) = summary_from_thread_list_item(
                     it,
                     fallback_provider.as_str(),
                     state_db_ctx.as_ref(),
@@ -4433,14 +4433,13 @@ impl CodexMessageProcessor {
                 else {
                     continue;
                 };
+                let normalized_summary_cwd = normalize_for_path_comparison(&summary.cwd)
+                    .unwrap_or_else(|_| summary.cwd.clone());
                 if source_kind_filter
                     .as_ref()
                     .is_none_or(|filter| source_kind_matches(&summary.source, filter))
-                    && cwd_filter.is_none_or(|expected_cwd| &summary.cwd == expected_cwd)
+                    && cwd_filter.is_none_or(|expected_cwd| &normalized_summary_cwd == expected_cwd)
                 {
-                    if let Some(cwd) = cwd.as_ref() {
-                        summary.cwd = cwd.clone();
-                    }
                     filtered.push(summary);
                     if filtered.len() >= remaining {
                         break;
