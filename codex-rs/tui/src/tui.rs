@@ -273,6 +273,11 @@ impl Tui {
         supports_color::on_cached(supports_color::Stream::Stdout);
         let _ = crate::terminal_palette::default_colors();
 
+        // Warp supports in-app notifications and status tracking for codex conversations
+        // (and declares this support via WARP_CLI_AGENT_PROTOCOL_VERSION), so conversation status updates
+        // shoudl be sent to warp regardless of focus state.
+        let is_warp_with_protocol = env::var("WARP_CLI_AGENT_PROTOCOL_VERSION").is_ok();
+
         Self {
             frame_requester,
             draw_tx,
@@ -286,7 +291,7 @@ impl Tui {
             terminal_focused: Arc::new(AtomicBool::new(true)),
             enhanced_keys_supported,
             notification_backend: Some(detect_backend(NotificationMethod::default())),
-            skip_focus_check: env::var("TERM_PROGRAM").ok().as_deref() == Some("WarpTerminal"),
+            skip_focus_check: is_warp_with_protocol,
             alt_screen_enabled: true,
         }
     }

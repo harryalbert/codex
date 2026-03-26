@@ -52,11 +52,16 @@ fn supports_osc9() -> bool {
     if env::var_os("WT_SESSION").is_some() {
         return false;
     }
+    // Warp declares protocol support via this env var; if present the terminal
+    // supports OSC 9 notifications regardless of TERM_PROGRAM.
+    if env::var("WARP_CLI_AGENT_PROTOCOL_VERSION").is_ok() {
+        return true;
+    }
     // Prefer TERM_PROGRAM when present, but keep fallbacks for shells/launchers
     // that don't set it (e.g., tmux/ssh) to avoid regressing OSC 9 support.
     if matches!(
         env::var("TERM_PROGRAM").ok().as_deref(),
-        Some("WezTerm" | "ghostty" | "WarpTerminal")
+        Some("WezTerm" | "ghostty")
     ) {
         return true;
     }
@@ -133,6 +138,7 @@ mod tests {
     fn auto_prefers_bel_without_hints() {
         let _term = EnvVarGuard::remove("TERM");
         let _term_program = EnvVarGuard::remove("TERM_PROGRAM");
+        let _protocol = EnvVarGuard::remove("WARP_CLI_AGENT_PROTOCOL_VERSION");
         let _iterm = EnvVarGuard::remove("ITERM_SESSION_ID");
         let _wt = EnvVarGuard::remove("WT_SESSION");
         assert!(matches!(
@@ -145,7 +151,8 @@ mod tests {
     #[serial]
     fn auto_uses_osc9_for_warp() {
         let _term = EnvVarGuard::remove("TERM");
-        let _term_program = EnvVarGuard::set("TERM_PROGRAM", "WarpTerminal");
+        let _term_program = EnvVarGuard::remove("TERM_PROGRAM");
+        let _protocol = EnvVarGuard::set("WARP_CLI_AGENT_PROTOCOL_VERSION", "1");
         let _iterm = EnvVarGuard::remove("ITERM_SESSION_ID");
         let _wt = EnvVarGuard::remove("WT_SESSION");
         assert!(matches!(
